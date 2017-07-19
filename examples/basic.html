@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Reticulum | Basic VR Example</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<style type="text/css">
+	html, body {
+		background-color: #000;
+		margin: 0;
+		padding: 0; 
+		overflow: hidden;
+	}
+	.well {
+   background-color: rgba(245, 245, 245, 0.4);
+   font-size: 10px;
+}
+</style>
+</head>
+<body>
+<div id="Message" width='100px'>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/4.1.3/firebase.js"></script>
+<script>
+    // Initialize Firebase
+    var config = {
+      apiKey: "AIzaSyCfFlTG8ZLjIu-sHMw-b8DhUELEdHJnzNs",
+      authDomain: "evrportal.firebaseapp.com",
+      databaseURL: "https://evrportal.firebaseio.com",
+      projectId: "evrportal",
+      storageBucket: "",
+      messagingSenderId: "1010899220129"
+    };
+    firebase.initializeApp(config);
+</script>
+
+<script>
+/*
+ * Debug parameters.
+ */
+WebVRConfig = {
+  /**
+   * webvr-polyfill configuration
+   */
+  // Forces availability of VR mode.
+  //FORCE_ENABLE_VR: true, // Default: false.
+  
+  // Complementary filter coefficient. 0 for accelerometer, 1 for gyro.
+  //K_FILTER: 0.98, // Default: 0.98.
+  
+  // How far into the future to predict during fast motion.
+  //PREDICTION_TIME_S: 0.040, // Default: 0.040 (in seconds).
+  
+  // Flag to disable touch panner. In case you have your own touch controls
+  //TOUCH_PANNER_DISABLED: true, // Default: false.
+  
+  // Enable yaw panning only, disabling roll and pitch. This can be useful for
+  // panoramas with nothing interesting above or below.
+  //YAW_ONLY: true, // Default: false.
+
+  // Enable the deprecated version of the API (navigator.getVRDevices).
+  //ENABLE_DEPRECATED_API: true, // Default: false.
+  
+  // Scales the recommended buffer size reported by WebVR, which can improve
+  // performance. Making this very small can lower the effective resolution of
+  // your scene.
+  BUFFER_SCALE: 0.5, // default: 1.0
+  
+  // Allow VRDisplay.submitFrame to change gl bindings, which is more
+  // efficient if the application code will re-bind it's resources on the
+  // next frame anyway.
+  // Dirty bindings include: gl.FRAMEBUFFER_BINDING, gl.CURRENT_PROGRAM,
+  // gl.ARRAY_BUFFER_BINDING, gl.ELEMENT_ARRAY_BUFFER_BINDING,
+  // and gl.TEXTURE_BINDING_2D for texture unit 0
+  // Warning: enabling this might lead to rendering issues.
+  //DIRTY_SUBMIT_FRAME_BINDINGS: true // default: false
+};
+</script>
+
+<!-- THREE library, controls and effects -->
+<script src="./js/lib/THREE55.js"></script>
+<script src="./js/lib/three.js"></script>
+
+<script src="js/lib/Detector.js"></script>
+<script src="./js/lib/VRControls.js"></script>
+<script src="./js/lib/VREffect.js"></script>
+<!-- WebVR polyfill and manager -->
+<script src="./js/lib/webvr-polyfill.js"></script>
+<script src="./js/lib/webvr-manager.js"></script>
+<!-- A simple gaze interaction manager for VR -->
+<script src="../reticulum.js"></script>
+
+
+
+<script>
+
+
+// Setup three.js WebGL renderer
+var renderer = new THREE.WebGLRenderer( { antialias: true } );
+renderer.setPixelRatio( window.devicePixelRatio );
+// Append the canvas element created by the renderer to document body element.
+document.body.appendChild( renderer.domElement );
+// custom global variables
+var video, videoImage, videoImageContext, videoTexture;
+
+//Create a three.js scene
+var scene = new THREE.Scene();
+
+//Camera
+//Create a three.js camera
+var camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+//Apply VR headset positional data to camera.
+var controls = new THREE.VRControls( camera );
+controls.standing = true;
+
+//Apply VR stereo rendering to renderer
+var effect = new THREE.VREffect( renderer );
+effect.setSize( window.innerWidth, window.innerHeight );
+
+// Create a VR manager helper to enter and exit VR mode.
+var manager = new WebVRManager( renderer, effect, {hideButton: false, isUndistorted: false} );
+
+
+var hemiLight = new THREE.HemisphereLight(0x0000ff, 0x00ff00, 0.6);
+hemiLight.position.set(0, 500, 0);
+
+scene.add(hemiLight);
+var boxGeometry = new THREE.BoxGeometry( 1, 1, 1 );
+var planeGeometry = new THREE.PlaneGeometry( 0.8, 0.8 );
+var sphereGeometry = new THREE.SphereGeometry( 1, 2, 2 );
+
+//Sample data
+var data = [
+	{
+	"name": "main",
+	"type": "sphere",
+	"image_url": "../examples/img/hall.jpg"	
+	},
+	{
+	"name": "room1",
+	"type": "gaze",
+	"x": 1,
+	"y": 0,
+	"rotY": 0,
+	"z": -10
+	},
+	{
+	"name": "room2",
+	"type": "gaze",
+	"x": -1,
+	"y": 0,
+	"rotY": 0,
+	"z": -10
+	}
+]
+
+
+//Initialize Scene
+pointer();
+init();
+
+
+
+function init(){
+//TODO GET data from backend, parse json to array of objects.
+
+for(i = 0; i < data.length; i++) {
+
+	if(data[i].type == "sphere"){
+		 addSphere(data[i].image_url, data[i].name);
+	}else if(data[i].type == "gaze"){
+		addMesh(planeGeometry, data[i].x, data[i].y, data[i].name, data[i].rotY, data[i].z);
+	}
+     
+}
+
+//listen to background change
+var dbRef = firebase.database().ref().child('bg');
+dbRef.on('value', snap => addSphere(snap.val(), "main"));
+
+// //addMesh(boxGeometry);
+//addMesh(planeGeometry, 1, 0, 'room1', 0, -10);
+//addMesh(planeGeometry, -1, 0, 'room2', 0, -10);
+// //addMesh(sphereGeometry);
+// addText('welcome', 'Welcome', 0.40, 1.3, 30, 0);
+// //createVideo();
+
+//Load Sphere
+// addSphere("../examples/img/hall.jpg", "main");
+}
+
+function pointer(){
+var mesh = new THREE.Mesh( new THREE.SphereGeometry( .05, 20, 3 ), new THREE.MeshNormalMaterial() );
+//mesh.position.z = -50; // some negative number
+mesh.rotation.copy( camera.rotation );
+mesh.updateMatrix();
+mesh.translateZ( - 10 );
+scene.add( camera );
+camera.add( mesh );
+}
+function addSphere(textUrl, name){
+// Create a texture-mapped cube and add it to the scene
+    // First, create the texture map
+    // Maya Scene Source – fisheye image https://thefulldomeblog.com/2013/08/06/house-of-mirrors/
+    // rendered with Domemaster3D
+    // https://github.com/zicher3d-org/domemaster-stereo-shader/releases
+
+    //Download
+
+    var textureUrl = textUrl;
+    var loader = new THREE.TextureLoader();
+    var map = loader.load( 
+        // resource URL
+        textureUrl
+    );
+
+    // Now, create a Basic material; pass in the map
+
+    var material = new THREE.MeshBasicMaterial({ map: map, side:THREE.DoubleSide });
+
+    // Create the sky sphere geometry
+    var geometry = new THREE.SphereGeometry(15, 32, 32);
+    // We're looking at the inside
+    geometry.applyMatrix( new THREE.Matrix4().makeScale( -2, 1, 1 ) );
+
+    // And put the geometry and material together into a mesh
+    var sphere = new THREE.Mesh(geometry, material);
+    sphere.rotation.y = -Math.PI / 2;
+	sphere.name = name;
+	// Finally, add the mesh to our scene
+    scene.add(sphere);
+    
+
+//Called on each render loop
+var duration = 10000; // ms
+}
+
+function addMesh(geo, posX, posY, name, rotY, zIndex) {
+
+	var object = new THREE.Mesh( geo, new THREE.MeshLambertMaterial( { color: Math.random() * 0xffffff } ) );
+	object.name = name;
+	object.position.x = posX;
+	object.position.y = posY;
+	object.rotation.y = rotY;
+object.updateMatrix();
+object.translateZ(zIndex);
+
+scene.add( object );
+console.log("addMesh" + name);
+addReticulum(object, name);
+}
+//Add Reticulum
+	function addReticulum(object, itemToRemove){
+	// *******************************
+	// --- Reticulum ---
+	// have the object react when user looks at it
+	// track the object
+	Reticulum.add( object, {
+		onGazeOver: function(){
+			// do something when user targets object
+			
+			this.material.emissive.setHex( 0xffcc00 );
+		},
+		onGazeOut: function(){
+			// do something when user moves reticle off targeted object
+			this.material.emissive.setHex( 0xcc0000 );
+		},
+		onGazeLong: function(){
+			// do something user targetes object for specific time
+			console.log("onGazeLong" + object.name);
+			var name = object.name;
+			actionEvent(name);
+			
+			this.material.emissive.setHex( 0x0000cc );
+			
+		},
+		onGazeClick: function(){
+			// have the object react when user clicks / taps on targeted object
+			this.material.emissive.setHex( 0x00cccc * Math.random() );
+		}
+	});
+	}
+		//removeReticulum
+		function removeReticulum(itemToRemove){
+		var selectedObject = scene.getObjectByName(itemToRemove);
+		scene.remove( selectedObject );
+		Reticulum.remove(selectedObject);
+		
+		}
+		//removeObject
+		function removeObject(itemToRemove){
+		var selectedObject = scene.getObjectByName(itemToRemove);
+			scene.remove( selectedObject );
+		
+		}
+
+//Action Manager
+function actionEvent(name){
+console.log("actionEvent" + name);
+if(name == 'room2'){
+//Remove objects from the first scene
+removeReticulum("room1");
+removeReticulum("room2");
+removeObject("welcome");
+removeObject("main");
+
+// for(i = 0; i < data.length; i++) {
+// 	if(data[i].type == "sphere"){
+// 		removeObject(data[i].name);
+// 	}else if(data[i].type == "gaze"){
+// 		removeReticulum(data[i].name);
+// 	}
+// }
+
+// Add objects for the 2nd scene
+addSphere("../examples/img/Room6.jpg", "room2Sphere");
+addMesh(planeGeometry, 7.5, -1.5, 'purchaseBut', 850.05, -16);
+addMesh(planeGeometry, 7.5, -1.5, 'goBack', 849.55, -16);
+animate();
+
+}else if(name == 'Yes'){
+console.log('notify');
+addText('purchase', 'You are about to exit in VRMODE', 0.40, 1.3, 30, 849.95);
+addText('proceed', 'Would you like to proceed?', 0.40, 1.15, 30, 849.9);
+addMesh(planeGeometry, 7.7, .75, 'Confirm', 849.98, -16);
+addMesh(planeGeometry, 7.7, .75, 'Cancel', 849.91, -16);
+removeObject("purchase");
+removeReticulum("Yes");
+removeReticulum("No");
+
+}else if(name == 'No'){
+console.log("NO");
+removeObject("purchase");
+removeReticulum("Yes");
+removeReticulum("No");
+addMesh(planeGeometry, 7.5, -1.5, 'purchaseBut', 850.05, -16);
+}else if(name == "purchaseBut"){
+addText('purchase', 'Would you like to reserve this room?', 0.40, 1.3, 30, 850);
+addMesh(planeGeometry, 7.5, 1.2, 'Yes', 850.05, -16);
+addMesh(planeGeometry, 1, 1.2, 'No', 850, -9.5);
+removeReticulum("purchaseBut");
+}else if(name == "Confirm"){
+window.location = 'http://www.marriott.com/hotels/travel/dxbak-lapita-dubai-parks-and-resorts-autograph-collection';
+}else if(name == "Cancel"){
+removeObject("purchase");
+removeObject("proceed");
+removeReticulum("Confirm");
+removeReticulum("Cancel");
+// Add objects for the 2nd scene
+addSphere("../examples/img/Room6.jpg", "room2Sphere");
+addMesh(planeGeometry, 7.5, -1.5, 'purchaseBut', 850.05, -16);
+addMesh(planeGeometry, 7.5, -1.5, 'goBack', 849.55, -16);
+}else if(name =="goBack"){
+init();
+removeReticulum("purchaseBut");
+removeReticulum("goBack");
+removeObject("room2Sphere");
+}
+}
+// *******************************
+// --- Reticulum ---
+// initiate Reticulum so it loads up 
+Reticulum.init(camera, {
+	proximity: false,
+	clickevents: true,
+	reticle: {
+		visible: true,
+		restPoint: 1000, //Defines the reticle's resting point when no object has been targeted
+		color: 0xcc00cc,
+		innerRadius: 0.002,
+		outerRadius: 0.005,
+		hover: {
+			color: 0x00cccc,
+			innerRadius: 0.02,
+			outerRadius: 0.024,
+			speed: 5,
+			vibrate: 50 //Set to 0 or [] to disable
+		}
+	},
+	fuse: {
+		visible: true,
+		duration: 2.5,
+		color: 0x00fff6,
+		innerRadius: 0.045,
+		outerRadius: 0.06,
+		vibrate: 0, //Set to 0 or [] to disable
+		clickCancelFuse: false //If users clicks on targeted object fuse is canceled
+	}
+});
+
+// IMPORTANT add camera to cene if you want to see a reticle 
+scene.add(camera);
+
+function addText(name, text, coordinateXpos, coordinateYpos, contentWidth, rotY){
+// add 3D text
+	var materialFront = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+	var materialSide = new THREE.MeshBasicMaterial( { color: 0x000088 } );
+	var materialArray = [ materialFront, materialSide ];
+	
+	var spritey = makeTextSprite( text, 
+		{ fontsize: 12, fontface: "Georgia", borderColor: {r:0, g:0, b:255, a:1.0} } );
+		
+	spritey.name = name;
+	spritey.position.x = coordinateXpos;
+	spritey.position.y = coordinateYpos;
+	spritey.rotation.y = rotY;
+	spritey.updateMatrix();
+	spritey.translateZ( -2 );
+	scene.add( spritey );
+	
+}
+function createVideo(){
+///////////
+	// VIDEO //
+	///////////
+	
+	// create the video element
+	video = document.createElement( 'video' );
+	// video.id = 'video';
+	// video.type = ' video/ogg; codecs="theora, vorbis" ';
+	video.src = "videos/sintel.ogv";
+	video.load(); // must call after setting/changing source
+	video.play();
+	
+	// alternative method -- 
+	// create DIV in HTML:
+	// <video id="myVideo" autoplay style="display:none">
+	//		<source src="videos/sintel.ogv" type='video/ogg; codecs="theora, vorbis"'>
+	// </video>
+	// and set JS variable:
+	// video = document.getElementById( 'myVideo' );
+	
+	videoImage = document.createElement( 'canvas' );
+	videoImage.width = 1000;
+	videoImage.height = 600;
+
+	videoImageContext = videoImage.getContext( '2d' );
+	// background color if no video present
+	videoTexture = new THREE.Texture( videoImage );
+	videoTexture.minFilter = THREE.LinearFilter;
+	videoTexture.magFilter = THREE.LinearFilter;
+	
+	var movieMaterial = new THREE.MeshBasicMaterial( { map: videoTexture, overdraw: true, side:THREE.DoubleSide } );
+	// the geometry on which the movie will be displayed;
+	// 		movie image will be scaled to fit these dimensions.
+	var movieGeometry = new THREE.PlaneGeometry( 80, 4);
+	var movieScreen = new THREE.Mesh( movieGeometry, movieMaterial );
+	movieScreen.translateZ( -9 );
+	scene.add(movieScreen);
+	camera.position.set(0,200,300);
+	camera.lookAt(movieScreen.position);
+}
+function makeTextSprite( message, parameters )
+{
+	if ( parameters === undefined ) parameters = {};
+	
+	var fontface = parameters.hasOwnProperty("fontface") ? 
+		parameters["fontface"] : "Arial";
+	
+	var fontsize = parameters.hasOwnProperty("fontsize") ? 
+		parameters["fontsize"] : 18;
+	
+	var borderThickness = parameters.hasOwnProperty("borderThickness") ? 
+		parameters["borderThickness"] : 1;
+	
+	var borderColor = parameters.hasOwnProperty("borderColor") ?
+		parameters["borderColor"] : { r:0, g:0, b:0, a:1.0 };
+	
+	var backgroundColor = parameters.hasOwnProperty("backgroundColor") ?
+		parameters["backgroundColor"] : { r:255, g:255, b:255, a:1.0 };
+	
+	var spriteAlignment = THREE.SpriteAlignment.topLeft;
+		
+	var canvas = document.createElement('canvas');
+	var context = canvas.getContext('2d');
+	context.font = "Bold " + fontsize + "px " + fontface;
+    
+	// get size data (height depends only on font size)
+	var metrics = context.measureText( message );
+	var textWidth = metrics.width;
+	// background color
+	context.fillStyle   = "rgba(" + backgroundColor.r + "," + backgroundColor.g + ","
+								  + backgroundColor.b + "," + backgroundColor.a + ")";
+	// border color
+	context.strokeStyle = "rgba(" + borderColor.r + "," + borderColor.g + ","
+								  + borderColor.b + "," + borderColor.a + ")";
+
+	context.lineWidth = borderThickness;
+	roundRect(context, borderThickness/2, borderThickness/2, textWidth + borderThickness * 2, fontsize * 1.4 + borderThickness, 10);
+	// 1.4 is extra height factor for text below baseline: g,j,p,q.
+	
+	// text color
+	context.fillStyle = "rgba(0, 0, 0, 1.0)";
+
+	context.fillText( message, borderThickness, fontsize + borderThickness);
+	
+	// canvas contents will be used for a texture
+	var texture = new THREE.Texture(canvas) 
+	texture.needsUpdate = true;
+
+	var spriteMaterial = new THREE.SpriteMaterial( 
+		{ map: texture, useScreenCoordinates: false, alignment: spriteAlignment } );
+	var sprite = new THREE.Sprite( spriteMaterial );
+	
+	return sprite;	
+}
+
+// function for drawing rounded rectangles
+function roundRect(ctx, x, y, w, h, r) 
+{
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y);
+    ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+    ctx.lineTo(x+w, y+h-r);
+    ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+    ctx.lineTo(x+r, y+h);
+    ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+    ctx.lineTo(x, y+r);
+    ctx.quadraticCurveTo(x, y, x+r, y);
+    ctx.closePath();
+    ctx.fill();
+	ctx.stroke();   
+}
+
+function animate(timestamp) {
+
+	// *******************************
+	// --- Reticulum ---
+	// keep checking if user is looking at any tracked objects
+	Reticulum.update();
+	
+	controls.update();
+	camera.updateMatrixWorld(); // Required to stop ghosting - must be placed before render update
+	manager.render(scene, camera, timestamp);
+
+	requestAnimationFrame(animate);
+	
+}
+animate();
+
+
+
+</script>
+
+</body>
+</html>

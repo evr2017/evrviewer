@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Reticulum | Room1</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<style type="text/css">
+	html, body {
+		background-color: #000;
+		margin: 0;
+		padding: 0; 
+		overflow: hidden;
+	}
+	.well {
+   background-color: rgba(245, 245, 245, 0.4);
+   font-size: 10px;
+}
+canvas { width: 100%; height: 100% }
+audio { 
+   display:none;
+}
+</style>
+</head>
+<body>
+<!--start audio files-->
+	<audio autoplay="" controls="" loop="" preload="">
+  	<source src="../examples/sounds/nocturne.mp3" type="audio/mpeg">
+	Your browser does not support the audio element.
+<div id="Message" width='100px'>
+</div>
+
+<script>
+/*
+ * Debug parameters.
+ */
+WebVRConfig = {
+  BUFFER_SCALE: 0.5, // default: 1.0
+};
+</script>
+
+<!-- THREE library, controls and effects -->
+<script src="./examples/js/lib/THREE55.js"></script>
+<script src="./examples/js/lib/three.js"></script>
+
+<script src="./examples/js/lib/Detector.js"></script>
+<script src="./examples/js/lib/VRControls.js"></script>
+<script src="./examples/js/lib/VREffect.js"></script>
+<!-- WebVR polyfill and manager -->
+<script src="./examples/js/lib/webvr-polyfill.js"></script>
+<script src="./examples/js/lib/webvr-manager.js"></script>
+<!-- A simple gaze interaction manager for VR -->
+<script src="reticulum.js"></script>
+<script>
+
+
+var renderer = new THREE.WebGLRenderer();
+renderer.setPixelRatio( window.devicePixelRatio );
+renderer.setSize( window.innerWidth, window.innerHeight );
+document.body.appendChild( renderer.domElement );
+
+// custom global variables
+var video, videoImage, videoImageContext, videoTexture;
+
+//Create a three.js scene
+var scene = new THREE.Scene();
+
+//Camera
+//Create a three.js camera
+var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+//Apply VR headset positional data to camera.
+var controls = new THREE.VRControls( camera );
+controls.standing = true;
+
+//Apply VR stereo rendering to renderer
+var effect = new THREE.VREffect( renderer );
+effect.setSize( window.innerWidth, window.innerHeight );
+
+// Create a VR manager helper to enter and exit VR mode.
+var manager = new WebVRManager( renderer, effect, {hideButton: false, isUndistorted: false} );
+
+
+var hemiLight = new THREE.HemisphereLight(0x0000ff, 0x00ff00, 0.6);
+hemiLight.position.set(0, 500, 0);
+
+scene.add(hemiLight);
+var boxGeometry = new THREE.BoxGeometry( 1, 1, 1 );
+var planeGeometry = new THREE.PlaneGeometry( 0.8, 0.8 );
+var sphereGeometry = new THREE.SphereGeometry( 1, 2, 2 );
+
+//Initial Data
+var hallway = [
+	{
+		"name": "hallway",
+		"type": "sphere",
+		"image_url": "../examples/images/hall.jpg"	
+	}
+];
+
+
+var hallwayObjects = [
+	{
+		"name": "room1_door",
+		"type": "gaze",
+		"x": -1,
+		"y": 0,
+		"rotY": 9.8,
+		"z": -9,
+		"texture": '../examples/images/key.png'
+	},
+	{
+		"name": "room2_door",
+		"type": "gaze",
+		"x": -3,
+		"y": 0.5,
+		"rotY": 9.8,
+		"z": -10,
+		"texture": '../examples/images/sale.png'
+	},
+	{
+		"name": "room6_door",
+		"type": "gaze",
+		"x": -4.5,
+		"y": .5,
+		"rotY": 9.8,
+		"z": -8,
+		"texture": '../examples/images/sale.png'
+	}
+];
+
+var room3 = [
+	{
+		"name": "living",
+		"type": "sphere",
+		"image_url": "../examples/images/Living.jpg"	
+	}
+];
+
+
+var room3Objects = [
+	{
+		"name": "rm3_room1_door",
+		"type": "gaze",
+		"x": 0,
+		"y": -0.5,
+		"rotY": -1,
+		"z": -6,
+		"texture": '../examples/images/exit.png'
+	},
+	{
+		"name": "info",
+		"type": "object",
+		"x": 0.8,
+		"y": 1.5,
+		"rotY": .6,
+		"z": -3,
+		"texture": '../examples/images/deluxeroom.png'
+	},
+	{
+		"name": "rm3_exit_door",
+		"type": "gaze",
+		"x": .2,
+		"y": 0,
+		"rotY": 9.5,
+		"z": -10,
+		"texture": '../examples/images/exit.png'
+	},
+];
+
+
+
+var room1 = [
+	{
+		"name": "room1",
+		"type": "sphere",
+		"image_url": "../examples/images/Room1.jpg"	
+	}
+];
+
+
+var room1Objects = [
+	{
+		"name": "exit_door",
+		"type": "gaze",
+		"x": -4,
+		"y": 1,
+		"rotY": 0,
+		"z": -7,
+		"texture": '../examples/images/exit.png'
+	},
+	{
+		"name": "info",
+		"type": "object",
+		"x": 0,
+		"y": 2,
+		"rotY": 0,
+		"z": -1.5,
+		"texture": '../examples/images/deluxeroom.png'
+	},
+	{
+		"name": "book",
+		"type": "gaze",
+		"x": 0,
+		"y": -1,
+		"rotY": 9.5,
+		"z": -4,
+		"texture": '../examples/images/book.png'
+	},
+	{
+		"name": "rm1_room3_door",
+		"type": "gaze",
+		"x": 0,
+		"y": 1,
+		"rotY": -0.7,
+		"z": -6,
+		"texture": '../examples/images/exit.png'
+	}
+];
+
+
+var room6 = [
+	{
+		"name": "room6",
+		"type": "sphere",
+		"image_url": "../examples/images/Room6.jpg"	
+	}
+];
+
+var room2 = [
+	{
+		"name": "room2",
+		"type": "sphere",
+		"image_url": "../examples/images/Room2.jpg"	
+	}
+];
+var room2Objects = [
+	{
+		"name": "rm2_book",
+		"type": "gaze",
+		"x": -1,
+		"y": -1,
+		"rotY": 0,
+		"z": -6,
+		"texture": '../examples/images/book.png'
+	},
+	{
+		"name": "rm2_exit_door",
+		"type": "gaze",
+		"x": -1,
+		"y": 0,
+		"rotY": 850.6,
+		"z": -9,
+		"texture": '../examples/images/exit.png'	
+	},
+	{
+		"name": "info",
+		"type": "object",
+		"x": 0,
+		"y": 2,
+		"rotY": 0,
+		"z": -1.5,
+		"texture": '../examples/images/deluxeroom.png'
+	}
+
+	
+];
+var room6Objects = [
+	{
+		"name": "rm6_book",
+		"type": "gaze",
+		"x": 5.5,
+		"y": -.7,
+		"rotY": 850.05,
+		"z": -12,
+		"texture": '../examples/images/book.png'
+	},
+	{
+		"name": "rm6_exit_door",
+		"type": "gaze",
+		"x": 6.5,
+		"y": 0,
+		"rotY": 849.55,
+		"z": -14,
+		"texture": '../examples/images/exit.png'	
+	},
+	{
+		"name": "info",
+		"type": "object",
+		"x": 2,
+		"y": 2,
+		"rotY": 850.05,
+		"z": -3.5,
+		"texture": '../examples/images/premierroom.png'
+	}
+
+	
+];
+
+var bookData1= [
+	{
+		"name": "book_confirm_msg",
+		"type": "object",
+		"x": 0,
+		"y": 1,
+		"rotY": 9.5,
+		"z": -2,
+		"texture": '../examples/images/booking.png'
+	},
+	{
+		"name": "yes",
+		"type": "gaze",
+		"x": 1,
+		"y": -3,
+		"rotY": 9.5,
+		"z": -8,
+		"texture": '../examples/images/ok.png'
+	},
+	{
+		"name": "no",
+		"type": "gaze",
+		"x": -1,
+		"y": -2.9,
+		"rotY": 9.5,
+		"z": -8,
+		"texture": '../examples/images/cancel.png'
+	}
+];
+
+
+var bookData6= [
+	{
+		"name": "book_confirm_msg6",
+		"type": "object",
+		"x": 1.8,
+		"y": 1.5,
+		"rotY": 850.05,
+		"z": -4.1,
+		"texture": '../examples/images/booking.png'
+	},
+	{
+		"name": "yes6",
+		"type": "gaze",
+		"x": 11,
+		"y": -.7,
+		"rotY": 850.05,
+		"z": -20,
+		"texture": '../examples/images/ok.png'
+	},
+	{
+		"name": "no6",
+		"type": "gaze",
+		"x": 2,
+		"y": -.6,
+		"rotY": 850.05,
+		"z": -11,
+		"texture": '../examples/images/cancel.png'
+	}
+];
+
+var bookData2= [
+	{
+		"name": "book_confirm_msg2",
+		"type": "object",
+		"x": 0,
+		"y": 1,
+		"rotY": 0,
+		"z": -2,
+		"texture": '../examples/images/booking.png'
+	},
+	{
+		"name": "yes2",
+		"type": "gaze",
+		"x": -1,
+		"y": -1.5,
+		"rotY": 0,
+		"z": -5.2,
+		"texture": '../examples/images/ok.png'
+	},
+	{
+		"name": "no2",
+		"type": "gaze",
+		"x": 1,
+		"y": -1.2,
+		"rotY": 0,
+		"z": -4.9,
+		"texture": '../examples/images/cancel.png'
+	}
+];
+
+
+var paymentData1 = [
+	{
+			"name": "payment_success_msg",
+			"type": "object",
+			"x": 0,
+			"y": 1,
+			"rotY": 9.5,
+			"z": -2,
+			"texture": '../examples/images/bookingcomplete.png'
+		},
+		{
+			"name": "continue",
+			"type": "gaze",
+			"x": 1,
+			"y": -1.5,
+			"rotY": 9.5,
+			"z": -4.7,
+			"texture": '../examples/images/continue.png'
+		},
+		{
+			"name": "exit",
+			"type": "gaze",
+			"x": -1,
+			"y": -1.4,
+			"rotY": 9.5,
+			"z": -4.7,
+			"texture": '../examples/images/exitvr.png'
+		}
+];
+
+var paymentData6 = [
+	{
+			"name": "payment_success_msg",
+			"type": "object",
+			"x": 1.8,
+			"y": 1.5,
+			"rotY": 850.05,
+			"z": -4.1,
+			"texture": '../examples/images/bookingcomplete.png'
+		},
+		{
+			"name": "continue6",
+			"type": "gaze",
+			"x": 10,
+			"y": .1,
+			"rotY": 850.05,
+			"z": -15,
+			"texture": '../examples/images/continue.png'
+		},
+		{
+			"name": "exit",
+			"type": "gaze",
+			"x": 0,
+			"y": 0,
+			"rotY": 850.05,
+			"z": -6,
+			"texture": '../examples/images/exitvr.png'
+		}
+];
+
+var paymentData2 = [
+	{
+			"name": "payment_success_msg",
+			"type": "object",
+			"x": 0,
+		"y": 1,
+		"rotY": 0,
+		"z": -2,
+			"texture": '../examples/images/bookingcomplete.png'
+		},
+		{
+			"name": "continue2",
+			"type": "gaze",
+			"x": -1,
+		"y": -1.5,
+		"rotY": 0,
+		"z": -5.2,
+			"texture": '../examples/images/continue.png'
+		},
+		{
+			"name": "exit",
+			"type": "gaze",
+			"x": 1,
+		"y": -1.3,
+		"rotY": 0,
+		"z": -4.9,
+			"texture": '../examples/images/exitvr.png'
+		}
+];
+
+
+
+//Initialize Scene
+pointer();
+init();
+
+
+function draw(data){
+//TODO GET data from backend, parse json to array of objects.
+	for(i = 0; i < data.length; i++) {
+
+		if(data[i].type == "sphere"){
+			 addSphere(data[i].image_url, data[i].name);
+		}else if(data[i].type == "gaze"){
+			var texture = THREE.ImageUtils.loadTexture(data[i].texture);
+			addMesh(planeGeometry, data[i].x, data[i].y, data[i].name, data[i].rotY, data[i].z, texture);
+		}else if(data[i].type == "object"){
+			var texture = THREE.ImageUtils.loadTexture(data[i].texture);
+			addObject(planeGeometry, data[i].x, data[i].y, data[i].name, data[i].rotY, data[i].z, texture);
+		}
+	     
+	}
+}
+
+function erase(data){
+	for(i = 0; i < data.length; i++) {
+		if(data[i].type == "sphere" || data[i].type == "object"){
+			removeObject(data[i].name);
+		}else if(data[i].type == "gaze"){
+			removeReticulum(data[i].name);
+		}
+	}
+}
+
+
+
+function init(){
+
+var pathname = window.location.pathname; // Returns path only
+var urlhref      = window.location.href; 
+var url = new URL(urlhref);
+var url_value = url.searchParams.get("room");
+
+// alert(url_value);
+
+	if(url_value=='1'){
+		draw(room1);
+		draw(room1Objects);
+	}else if(url_value=='2'){
+		draw(room2);
+		draw(room2Objects);
+	}else if(url_value=='6'){
+		draw(room6);
+		draw(room6Objects);
+	}else if(url_value=='3'){
+		draw(room3);
+		draw(room3Objects);
+	}else{
+		draw(hallway);
+		draw(hallwayObjects);
+	}
+}
+
+function pointer(){
+var mesh = new THREE.Mesh( new THREE.SphereGeometry( .05, 20, 3 ), new THREE.MeshNormalMaterial() );
+//mesh.position.z = -50; // some negative number
+mesh.rotation.copy( camera.rotation );
+mesh.updateMatrix();
+mesh.translateZ( -5 );
+scene.add( camera );
+camera.add( mesh );
+}
+function addSphere(textUrl, name){
+// Create a texture-mapped cube and add it to the scene
+    // First, create the texture map
+    // Maya Scene Source – fisheye image https://thefulldomeblog.com/2013/08/06/house-of-mirrors/
+    // rendered with Domemaster3D
+    // https://github.com/zicher3d-org/domemaster-stereo-shader/releases
+
+    var textureUrl = textUrl;
+    var loader = new THREE.TextureLoader();
+    var map = loader.load( 
+        // resource URL
+        textureUrl
+    );
+
+    // Now, create a Basic material; pass in the map
+
+    var material = new THREE.MeshBasicMaterial({ map: map, side:THREE.DoubleSide });
+
+    // Create the sky sphere geometry
+    var geometry = new THREE.SphereGeometry(15, 32, 32);
+    // We're looking at the inside
+    geometry.applyMatrix( new THREE.Matrix4().makeScale( -2, 1, 1 ) );
+
+    // And put the geometry and material together into a mesh
+    var sphere = new THREE.Mesh(geometry, material);
+    sphere.rotation.y = -Math.PI / 2;
+	sphere.name = name;
+	// Finally, add the mesh to our scene
+    scene.add(sphere);
+    
+
+//Called on each render loop
+var duration = 10000; // ms
+}
+
+function addMesh(geo, posX, posY, name, rotY, zIndex, texture) {
+	
+    var cbmaterial = new THREE.MeshPhongMaterial({map: texture});
+	
+    var material = new THREE.MeshBasicMaterial({ map: texture, side:THREE.DoubleSide, transparent:true, opacity:0.8});
+
+	var object = new THREE.Mesh( geo, material );
+	object.name = name;
+	object.position.x = posX;
+	object.position.y = posY;
+	object.rotation.y = rotY;
+	object.transparent = true
+	object.updateMatrix();
+	object.translateZ(zIndex);
+
+	scene.add( object );
+	console.log("addMesh" + name);
+	addReticulum(object, name);
+}
+
+
+function addObject(geo, posX, posY, name, rotY, zIndex, texture) {
+	
+    var cbmaterial = new THREE.MeshPhongMaterial({map: texture});
+	
+    var material = new THREE.MeshBasicMaterial({ map: texture, side:THREE.DoubleSide, transparent:true, opacity:0.8});
+
+	var object = new THREE.Mesh( geo, material );
+	object.name = name;
+	object.position.x = posX;
+	object.position.y = posY;
+	object.rotation.y = rotY;
+	object.transparent = true
+	object.updateMatrix();
+	object.translateZ(zIndex);
+
+	scene.add( object );
+	console.log("addMesh" + name);
+	// addReticulum(object, name);
+}
+
+//Add Reticulum
+	function addReticulum(object, itemToRemove){
+	// *******************************
+	// --- Reticulum ---
+	// have the object react when user looks at it
+	// track the object
+	Reticulum.add( object, {
+		onGazeOver: function(){
+			// do something when user targets object
+			
+			//his.material.emissive.setHex( 0xffcc00 );
+		},
+		onGazeOut: function(){
+			// do something when user moves reticle off targeted object
+			//this.material.emissive.setHex( 0xcc0000 );
+		},
+		onGazeLong: function(){
+			// do something user targetes object for specific time
+			console.log("onGazeLong" + object.name);
+			var name = object.name;
+			actionEvent(name);
+			
+			
+		},
+		onGazeClick: function(){
+			// have the object react when user clicks / taps on targeted object
+			this.material.emissive.setHex( 0x00cccc * Math.random() );
+		}
+	});
+	}
+		//removeReticulum
+		function removeReticulum(itemToRemove){
+		var selectedObject = scene.getObjectByName(itemToRemove);
+		scene.remove( selectedObject );
+		Reticulum.remove(selectedObject);
+		
+		}
+		//removeObject
+		function removeObject(itemToRemove){
+		var selectedObject = scene.getObjectByName(itemToRemove);
+			scene.remove( selectedObject );
+		
+		}
+
+//Action Manager
+function actionEvent(name){
+	console.log("actionEvent" + name);
+
+	if(name=='book'){
+		draw(bookData1);
+		erase(room1Objects);
+		clickSoundEffects("completebooking");
+	}else if(name=='no'){
+		erase(bookData1);
+		draw(room1Objects);
+		clickSoundEffects("cancel");
+	}else if(name=='exit_door'){
+		erase(room1);
+		erase(room1Objects);
+		draw(hallway);
+		draw(hallwayObjects);
+		clickSoundEffects("exit");
+	}else if(name=='yes'){
+		erase(bookData1);
+		draw(paymentData1);
+		clickSoundEffects("ok");
+	}else if(name=='continue'){
+		erase(paymentData1);
+		draw(room1Objects);
+		clickSoundEffects("door");
+	}else if(name=='exit'){
+		//TODO Exit vr mode
+		clickSoundEffects("doorclose");
+	}else if(name=='room1_door'){
+		erase(hallway);
+		erase(hallwayObjects);
+		draw(room3);
+		draw(room3Objects);
+		clickSoundEffects("door");
+	}else if(name=='room6_door'){
+		erase(hallway);
+		erase(hallwayObjects);
+		draw(room6);
+		draw(room6Objects);
+		clickSoundEffects("door");
+	}else if(name=='room2_door'){
+		erase(hallway);
+		erase(hallwayObjects);
+		draw(room2);
+		draw(room2Objects);
+		clickSoundEffects("door");
+	}else if(name=='rm6_exit_door'){
+		erase(room6);
+		erase(room6Objects);
+		draw(hallway);
+		draw(hallwayObjects);
+		clickSoundEffects("doorclose");
+	}else if(name=='rm2_exit_door'){
+		erase(room2);
+		erase(room2Objects);
+		draw(hallway);
+		draw(hallwayObjects);
+		clickSoundEffects("doorclose");
+	}else if(name=='rm6_book'){
+		erase(room6Objects);
+		draw(bookData6);
+		clickSoundEffects("money");
+	}else if(name=='rm2_book'){
+		erase(room2Objects);
+		draw(bookData2);
+		clickSoundEffects("money");
+	}else if(name=='yes6'){
+		erase(bookData6);
+		draw(paymentData6);
+		clickSoundEffects("ok");
+	}else if(name=='no6'){
+		erase(bookData6);
+		draw(room6Objects);
+		clickSoundEffects("cancel");
+	}else if(name=='yes2'){
+		erase(bookData2);
+		draw(paymentData2);
+		clickSoundEffects("ok");
+	}else if(name=='no2'){
+		erase(bookData2);
+		draw(room2Objects);
+		clickSoundEffects("cancel");
+	
+	}else if(name=='continue2'){
+		erase(paymentData2);
+		draw(room2Objects);
+		clickSoundEffects("cancel");
+	}
+	else if(name=='continue6'){
+		erase(paymentData6);
+		draw(room6Objects);
+		clickSoundEffects("ok");
+	}else if(name=='rm3_room1_door'){
+		erase(room3);
+		erase(room3Objects);
+		draw(room1);
+		draw(room1Objects);
+		clickSoundEffects("door");
+	}else if(name=='rm3_exit_door'){
+		erase(room3);
+		erase(room3Objects);
+		draw(hallway);
+		draw(hallwayObjects);
+				clickSoundEffects("exit");
+	}else if(name=='rm1_room3_door'){
+		erase(room1);
+		erase(room1Objects);
+		draw(room3);
+		draw(room3Objects);
+				clickSoundEffects("door");
+		
+	}
+}
+// *******************************
+// --- Reticulum ---
+// initiate Reticulum so it loads up 
+Reticulum.init(camera, {
+	proximity: false,
+	clickevents: true,
+	reticle: {
+		visible: true,
+		restPoint: 1000, //Defines the reticle's resting point when no object has been targeted
+		color: 0xcc00cc,
+		innerRadius: 0.002,
+		outerRadius: 0.005,
+		hover: {
+			color: 0x00cccc,
+			innerRadius: 0.02,
+			outerRadius: 0.024,
+			speed: 5,
+			vibrate: 50 //Set to 0 or [] to disable
+		}
+	},
+	fuse: {
+		visible: true,
+		duration: 2.5,
+		color: 0x00fff6,
+		innerRadius: 0.045,
+		outerRadius: 0.06,
+		vibrate: 0, //Set to 0 or [] to disable
+		clickCancelFuse: false //If users clicks on targeted object fuse is canceled
+	}
+});
+
+// IMPORTANT add camera to cene if you want to see a reticle 
+scene.add(camera);
+
+function addText(name, text, coordinateXpos, coordinateYpos, contentWidth, rotY){
+// add 3D text
+	var materialFront = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+	var materialSide = new THREE.MeshBasicMaterial( { color: 0x000088 } );
+	var materialArray = [ materialFront, materialSide ];
+	
+	var spritey = makeTextSprite( text, 
+		{ fontsize: 12, fontface: "Georgia", borderColor: {r:0, g:0, b:255, a:1.0} } );
+		
+	spritey.name = name;
+	spritey.position.x = coordinateXpos;
+	spritey.position.y = coordinateYpos;
+	spritey.rotation.y = rotY;
+	spritey.updateMatrix();
+	spritey.translateZ( -2 );
+	scene.add( spritey );
+	
+}
+
+
+function createVideo(){
+	///////////
+	// VIDEO //
+	///////////
+		
+	// create the video element
+	video = document.createElement( 'video' );
+	// video.id = 'video';
+	// video.type = ' video/ogg; codecs="theora, vorbis" ';
+	video.src = "videos/sintel.ogv";
+	video.load(); // must call after setting/changing source
+	video.play();
+		
+	// alternative method -- 
+	// create DIV in HTML:
+	// <video id="myVideo" autoplay style="display:none">
+	//		<source src="videos/sintel.ogv" type='video/ogg; codecs="theora, vorbis"'>
+	// </video>
+	// and set JS variable:
+	// video = document.getElementById( 'myVideo' );
+		
+	videoImage = document.createElement( 'canvas' );
+	videoImage.width = 1000;
+	videoImage.height = 600;
+
+	videoImageContext = videoImage.getContext( '2d' );
+	// background color if no video present
+	videoTexture = new THREE.Texture( videoImage );
+	videoTexture.minFilter = THREE.LinearFilter;
+	videoTexture.magFilter = THREE.LinearFilter;
+		
+	var movieMaterial = new THREE.MeshBasicMaterial( { map: videoTexture, overdraw: true, side:THREE.DoubleSide } );
+	// the geometry on which the movie will be displayed;
+	// 		movie image will be scaled to fit these dimensions.
+	var movieGeometry = new THREE.PlaneGeometry( 80, 4);
+	var movieScreen = new THREE.Mesh( movieGeometry, movieMaterial );
+	movieScreen.translateZ( -9 );
+	scene.add(movieScreen);
+	camera.position.set(0,200,300);
+	camera.lookAt(movieScreen.position);
+
+}
+
+
+function makeTextSprite( message, parameters )
+{
+	if ( parameters === undefined ) parameters = {};
+	
+	var fontface = parameters.hasOwnProperty("fontface") ? 
+		parameters["fontface"] : "Arial";
+	
+	var fontsize = parameters.hasOwnProperty("fontsize") ? 
+		parameters["fontsize"] : 18;
+	
+	var borderThickness = parameters.hasOwnProperty("borderThickness") ? 
+		parameters["borderThickness"] : 1;
+	
+	var borderColor = parameters.hasOwnProperty("borderColor") ?
+		parameters["borderColor"] : { r:0, g:0, b:0, a:1.0 };
+	
+	var backgroundColor = parameters.hasOwnProperty("backgroundColor") ?
+		parameters["backgroundColor"] : { r:255, g:255, b:255, a:1.0 };
+	
+	var spriteAlignment = THREE.SpriteAlignment.topLeft;
+		
+	var canvas = document.createElement('canvas');
+	var context = canvas.getContext('2d');
+	context.font = "Bold " + fontsize + "px " + fontface;
+    
+	// get size data (height depends only on font size)
+	var metrics = context.measureText( message );
+	var textWidth = metrics.width;
+	// background color
+	context.fillStyle   = "rgba(" + backgroundColor.r + "," + backgroundColor.g + ","
+								  + backgroundColor.b + "," + backgroundColor.a + ")";
+	// border color
+	context.strokeStyle = "rgba(" + borderColor.r + "," + borderColor.g + ","
+								  + borderColor.b + "," + borderColor.a + ")";
+
+	context.lineWidth = borderThickness;
+	roundRect(context, borderThickness/2, borderThickness/2, textWidth + borderThickness * 2, fontsize * 1.4 + borderThickness, 10);
+	// 1.4 is extra height factor for text below baseline: g,j,p,q.
+	
+	// text color
+	context.fillStyle = "rgba(0, 0, 0, 1.0)";
+
+	context.fillText( message, borderThickness, fontsize + borderThickness);
+	
+	// canvas contents will be used for a texture
+	var texture = new THREE.Texture(canvas) 
+	texture.needsUpdate = true;
+
+	var spriteMaterial = new THREE.SpriteMaterial( 
+		{ map: texture, useScreenCoordinates: false, alignment: spriteAlignment } );
+	var sprite = new THREE.Sprite( spriteMaterial );
+	
+	return sprite;	
+}
+
+// function for drawing rounded rectangles
+function roundRect(ctx, x, y, w, h, r) 
+{
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y);
+    ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+    ctx.lineTo(x+w, y+h-r);
+    ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+    ctx.lineTo(x+r, y+h);
+    ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+    ctx.lineTo(x, y+r);
+    ctx.quadraticCurveTo(x, y, x+r, y);
+    ctx.closePath();
+    ctx.fill();
+	ctx.stroke();   
+}
+
+function animate(timestamp) {
+	// *******************************
+	// --- Reticulum ---
+	// keep checking if user is looking at any tracked objects
+	Reticulum.update();
+	
+	controls.update();
+	camera.updateMatrixWorld(); // Required to stop ghosting - must be placed before render update
+	manager.render(scene, camera, timestamp);
+
+	requestAnimationFrame(animate);
+	
+}
+
+function clickSoundEffects(soundName){
+	//switch
+
+var audio = null;
+
+console.log("pangalan ng tunog: " + soundName);
+
+switch(soundName) {
+    case "money":
+        audio = new Audio('../examples/sounds/button-booked-success.mp3');
+        audio.play();
+        break;
+    case "deluxe":
+        audio = new Audio('../examples/sounds/deluxe-room.mp3');
+        audio.play();
+        break;
+    case "ok":
+    console.log("pumasok sa ok");
+        audio = new Audio('../examples/sounds/button-confirm.mp3');
+        audio.play();
+        break;
+    case "continue":
+        audio = new Audio('../examples/sounds/button-confirm.mp3');
+        audio.play();
+        break;
+    case "cancel":
+        audio = new Audio('../examples/sounds/button-cancel.mp3');
+        audio.play();
+        break;
+    case "wouldbook":
+    	console.log("SOUNDNAME: "+soundName);
+        audio = new Audio('../examples/sounds/button-confirm.mp3');
+        audio.play();
+        break;
+    case "completebooking":
+        audio = new Audio('../examples/sounds/button-booked-success.mp3');
+        audio.play();
+        break;
+    case "door":
+       console.log("pumasok sa door");
+        audio = new Audio('../examples/sounds/door.mp3');
+        audio.play();
+        break;
+    case "doorclose":
+       console.log("pumasok sa door close");
+        audio = new Audio('../examples/sounds/door-close.mp3');
+        audio.play();
+        break;
+    default:
+        audio = new Audio('../examples/sounds/button-confirm.mp3');
+        audio.play();
+}
+	
+
+}
+
+animate();
+</script>
+</body>
+</html>
